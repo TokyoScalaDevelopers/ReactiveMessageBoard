@@ -20,4 +20,8 @@ object Application extends Controller {
     MessageBoard.subscribe
   }
 
+  def getTasks = Action.async {
+    TaskManager.getTasks map { res => Ok(views.html.tasks(res)) }
+  }
+
 }
