@@ -1,3 +1,9 @@
-@(response: models.Cypher.Response[models.Cypher.Task])
+@(response: List[models.TaskManager.TaskTree])
 
-@response
+
+
+<ul>
+    @response.map { order =>
+    <li>@order</li>
+    }
+</ul>
