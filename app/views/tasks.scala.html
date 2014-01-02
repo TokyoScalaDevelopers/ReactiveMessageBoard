@@ -1,9 +1,18 @@
 @(response: Vector[models.TaskManager.TaskTree])
 
-
+@taskTreeHtml(taskTree: models.TaskManager.TaskTree) = {
+<li>
+    <p>@taskTree.task.desc</p>
+    <ul>
+        @taskTree.subTasks.map { subTaskTree =>
+            @taskTreeHtml(subTaskTree)
+        }
+    </ul>
+</li>
+}
 
 <ul>
-    @response.map { order =>
-    <li>@order</li>
+    @response.map { taskTree =>
+        @taskTreeHtml(taskTree)
     }
 </ul>

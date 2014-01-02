@@ -63,22 +63,26 @@ object TaskManager {
 
   case class Task(desc: String)
 
-  case class TaskTree(task: Task, subTasks: Vector[TaskTree] = Vector()) {
-
-//    def merge(that: TaskTree): List[TaskTree] = {
-//
-//      if (task == that.task) {
-//        // go deeper
-//      } else {
-//        // add the branch
-//
-//      }
-//
-//    }
-
-  }
+  case class TaskTree(task: Task, subTasks: Vector[TaskTree] = Vector())
 
   object TaskTree {
+
+    // TODO not tail recursive; refactor
+    def merge(existingTrees: Vector[TaskTree], newTrees: Vector[TaskTree]): Vector[TaskTree] = {
+
+      newTrees.foldLeft(existingTrees) {
+        case (acc, newTree) => {
+          acc.find(_.task == newTree.task) match {
+            case Some(existingTaskTree) => {
+              val index = existingTrees.indexOf(existingTaskTree)
+              (existingTrees.take(index) :+ TaskTree(existingTaskTree.task, merge(existingTaskTree.subTasks, newTree.subTasks))) ++ existingTrees.drop(index+1)
+            }
+            case _ => acc :+ newTree
+          }
+        }
+      }
+
+    }
 
     def merge(existingTrees: Vector[TaskTree], newTree: TaskTree): Vector[TaskTree] = {
 
@@ -146,16 +150,13 @@ object TaskManager {
       }).head
     }
 
-    val root = TaskTree(Task("root"))
-
     val res = asTasks map { taskList =>
-      //TODO Fold right on the linked lists is a big no-no. Refactor.
       taskList.dropRight(1).foldRight(TaskTree(taskList.last)){ (prev, acc) => TaskTree(prev, Vector(acc)) }
     }
 
     //res.toVector
 
-    TaskTree.merge(Vector(res.head),res(1))
+    TaskTree.merge(Vector(),res.toVector)
 
   }
 
