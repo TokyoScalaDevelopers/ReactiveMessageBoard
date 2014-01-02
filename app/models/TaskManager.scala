@@ -63,7 +63,59 @@ object TaskManager {
 
   case class Task(desc: String)
 
-  case class TaskTree(task: Task, subTasks: List[TaskTree] = List())
+  case class TaskTree(task: Task, subTasks: Vector[TaskTree] = Vector()) {
+
+//    def merge(that: TaskTree): List[TaskTree] = {
+//
+//      if (task == that.task) {
+//        // go deeper
+//      } else {
+//        // add the branch
+//
+//      }
+//
+//    }
+
+  }
+
+  object TaskTree {
+
+    def merge(existingTrees: Vector[TaskTree], newTree: TaskTree): Vector[TaskTree] = {
+
+      //val sameTree = existingTrees.find(_ == newTree)
+
+      val (rest, target) = existingTrees.foldLeft((Vector(): Vector[TaskTree], None: Option[TaskTree])) {
+        case ((skipped, found), value) =>
+          if (value.task == newTree.task) {
+            (skipped, Some(value))
+          } else {
+            (skipped :+ value, found)
+          }
+      }
+
+      target match {
+        // TODO now it works with singleton lists only, and it also looses ordering
+        case Some(t) =>
+          //if (!newTree.subTasks.isEmpty) {
+            rest :+ TaskTree(t.task, merge(t.subTasks, newTree.subTasks.head))
+          //} else {
+            //rest :+ TaskTree(t.task, t.subTasks)
+          //}
+        case _ => existingTrees :+ newTree
+      }
+
+//      if (existingTrees.contains(newTree)) {
+//        // go deeper
+//      } else {
+//
+//      }
+
+    }
+
+    //def merge(existingTrees: TaskTree
+
+  }
+
 
   val dbUri = "http://localhost:7474/db/data/cypher"
 
@@ -86,17 +138,24 @@ object TaskManager {
   def getTasks = Http(request) map { response =>
     val bodyAsString = response.getResponseBody("utf-8")
     val asListOfNodes = Json.parse(bodyAsString).as(Cypher.Response.reader(list(Cypher.Node.reader(Json.reads[Task]))))
-    val asTasks: List[List[Task]] = asListOfNodes.data map { row =>
+    val asTasks: List[Vector[Task]] = asListOfNodes.data map { row =>
       (row map { column =>
-        column map { node =>
+        (column map { node =>
           node.data
-        }
+        }).toVector
       }).head
     }
 
-    asTasks map { taskList =>
-      taskList.dropRight(1).foldRight(TaskTree(taskList.last)){ (prev, acc) => TaskTree(prev, List(acc)) }
+    val root = TaskTree(Task("root"))
+
+    val res = asTasks map { taskList =>
+      //TODO Fold right on the linked lists is a big no-no. Refactor.
+      taskList.dropRight(1).foldRight(TaskTree(taskList.last)){ (prev, acc) => TaskTree(prev, Vector(acc)) }
     }
+
+    //res.toVector
+
+    TaskTree.merge(Vector(res.head),res(1))
 
   }
 
