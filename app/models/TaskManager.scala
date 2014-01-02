@@ -63,6 +63,7 @@ object TaskManager {
 
   case class Task(desc: String)
 
+  // TODO Factor out into a generic data structure
   case class TaskTree(task: Task, subTasks: Vector[TaskTree] = Vector())
 
   object TaskTree {
@@ -71,52 +72,30 @@ object TaskManager {
     def merge(existingTrees: Vector[TaskTree], newTrees: Vector[TaskTree]): Vector[TaskTree] = {
 
       newTrees.foldLeft(existingTrees) {
-        case (acc, newTree) => {
-          acc.find(_.task == newTree.task) match {
-            case Some(existingTaskTree) => {
-              val index = existingTrees.indexOf(existingTaskTree)
-              (existingTrees.take(index) :+ TaskTree(existingTaskTree.task, merge(existingTaskTree.subTasks, newTree.subTasks))) ++ existingTrees.drop(index+1)
+        case (acc, newTree) =>
+
+          def split(processed: Vector[TaskTree], remaining: Vector[TaskTree]): (Vector[TaskTree], Option[TaskTree], Vector[TaskTree]) = {
+            if (remaining.isEmpty) {
+              (processed, None, remaining)
+            } else if (remaining.head.task == newTree.task) {
+              (processed, Some(remaining.head), remaining.tail)
+            } else {
+              split(processed :+ remaining.head, remaining.tail)
             }
-            case _ => acc :+ newTree
           }
-        }
+
+          val (left, mergeTarget, right) = split(Vector(), acc)
+
+          mergeTarget match {
+            case Some(t) => (left :+ TaskTree(t.task, merge(t.subTasks, newTree.subTasks))) ++ right
+            case _       => acc :+ newTree
+          }
+
       }
 
     }
 
-    def merge(existingTrees: Vector[TaskTree], newTree: TaskTree): Vector[TaskTree] = {
-
-      //val sameTree = existingTrees.find(_ == newTree)
-
-      val (rest, target) = existingTrees.foldLeft((Vector(): Vector[TaskTree], None: Option[TaskTree])) {
-        case ((skipped, found), value) =>
-          if (value.task == newTree.task) {
-            (skipped, Some(value))
-          } else {
-            (skipped :+ value, found)
-          }
-      }
-
-      target match {
-        // TODO now it works with singleton lists only, and it also looses ordering
-        case Some(t) =>
-          //if (!newTree.subTasks.isEmpty) {
-            rest :+ TaskTree(t.task, merge(t.subTasks, newTree.subTasks.head))
-          //} else {
-            //rest :+ TaskTree(t.task, t.subTasks)
-          //}
-        case _ => existingTrees :+ newTree
-      }
-
-//      if (existingTrees.contains(newTree)) {
-//        // go deeper
-//      } else {
-//
-//      }
-
-    }
-
-    //def merge(existingTrees: TaskTree
+    def merge(newTrees: Vector[TaskTree]): Vector[TaskTree] = merge(Vector(), newTrees)
 
   }
 
@@ -150,13 +129,11 @@ object TaskManager {
       }).head
     }
 
-    val res = asTasks map { taskList =>
+    val res = (asTasks map { taskList =>
       taskList.dropRight(1).foldRight(TaskTree(taskList.last)){ (prev, acc) => TaskTree(prev, Vector(acc)) }
-    }
+    }).toVector
 
-    //res.toVector
-
-    TaskTree.merge(Vector(),res.toVector)
+    TaskTree.merge(res)
 
   }
 
