@@ -76,8 +76,15 @@ object TaskManager {
 
   case class Task(desc: String)
 
+  implicit val taskFormat = Json.format[Task]
+
   // TODO Factor out into a generic data structure
   case class TaskTree(task: Task, subTasks: Vector[TaskTree] = Vector())
+
+  val taskTreeWrites: Writes[TaskTree] = (
+    (__ \ "task").write[Task] ~
+    (__ \ "subTasks").lazyWrite(Writes.traversableWrites[TaskTree](taskTreeWrites))
+  )(unlift(TaskTree.unapply))
 
   object TaskTree {
 
@@ -133,7 +140,7 @@ object TaskManager {
 
   def getTasks = Http(request) map { response =>
     val bodyAsString = response.getResponseBody("utf-8")
-    val asListOfNodes = Json.parse(bodyAsString).as(Cypher.Response.reader(list(Cypher.Node.reader(Json.reads[Task]))))
+    val asListOfNodes = Json.parse(bodyAsString).as(Cypher.Response.reader(list(Cypher.Node.reader(taskFormat))))
     val asTasks: List[Vector[Task]] = asListOfNodes.data map { row =>
       (row map { column =>
         (column map { node =>
@@ -172,14 +179,14 @@ object TaskManager {
           // parse message
           val message = messageJson.as[WebSocketMessage]
 
-//          message match {
-//            case WebSocketMessage(messageType) if messageType == "GetAll" =>
-//              getTasks.onSuccess {
-//                case Success(v) => taskManagerActor ! SendResponse(Json.toJson(message))
-//              }
-//          }
+          message match {
+            case WebSocketMessage(messageType) if messageType == "GetAll" =>
+              getTasks.onSuccess {
+                case value => taskManagerActor ! SendResponse(Json.toJson(value)(vectorTaskTreeWrites))
+              }
+          }
 
-          taskManagerActor ! SendResponse(Json.toJson(message))
+          //taskManagerActor ! SendResponse(Json.toJson(message))
 
         }
 
@@ -188,6 +195,8 @@ object TaskManager {
     }
 
   }
+
+  val vectorTaskTreeWrites = Writes.traversableWrites[TaskTree](taskTreeWrites)
 
   // WebSocket messages
   case class WebSocketMessage(messageType: String)

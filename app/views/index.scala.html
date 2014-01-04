@@ -3,16 +3,11 @@
     <body ng-cloak>
 
     <div task-manager-app>
-
         <ul>
-            <li ng-repeat="message in ctrl.messages">{{message}}</li>
+            <li ng-repeat="task in ctrl.tasks">
+                <task-tree task-tree="task"></task-tree>
+            </li>
         </ul>
-
-        <div>
-            <input type="text" ng-model="ctrl.textBoxValue"/>
-            <button ng-click="ctrl.sendMessage()">Send</button>
-        </div>
-
     </div>
 
     <script type="application/dart" src="@routes.Assets.at("main.dart")"></script>

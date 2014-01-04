@@ -1,0 +1,8 @@
+<div>
+    <div class="task">{{ctrl.taskTree.task.desc}}</div>
+    <ul>
+        <li ng-repeat="subTask in ctrl.taskTree.subTasks">
+            <task-tree task-tree="subTask"></task-tree>
+        </li>
+    </ul>
+</div>
