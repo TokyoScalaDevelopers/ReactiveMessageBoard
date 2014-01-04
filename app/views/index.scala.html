@@ -1,7 +1,23 @@
-@(message: String)
+@main("Task managmenet app") {
 
-@main("Welcome to Play") {
+    <body ng-cloak>
 
-    Nothing here
+    <div task-manager-app>
+
+        <ul>
+            <li ng-repeat="message in ctrl.messages">{{message}}</li>
+        </ul>
+
+        <div>
+            <input type="text" ng-model="ctrl.textBoxValue"/>
+            <button ng-click="ctrl.sendMessage()">Send</button>
+        </div>
+
+    </div>
+
+    <script type="application/dart" src="@routes.Assets.at("main.dart")"></script>
+    <script src="@routes.Assets.at("packages/browser/dart.js")"></script>
+
+    </body>
 
 }

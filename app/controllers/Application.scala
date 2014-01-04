@@ -1,27 +1,21 @@
 package controllers
 
-import play.api._
 import play.api.mvc._
-import play.api.libs.iteratee._
-import play.api.libs.json._
 
 import models._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.json.JsValue
 
 object Application extends Controller {
 
   def index = Action.async { request =>
-    Future { Ok(views.html.index("Your new application is ready")) }
+    Future { Ok(views.html.index()) }
   }
 
-  def messageBoard = WebSocket.async[String] {  request =>
-    MessageBoard.subscribe
-  }
-
-  def getTasks = Action.async {
-    TaskManager.getTasks map { res => Ok(views.html.tasks(res)) }
+  def getTaskManagerWSConnection = WebSocket.async[JsValue] {  request =>
+    TaskManager.subscribe
   }
 
 }

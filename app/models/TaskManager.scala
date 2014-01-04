@@ -5,6 +5,19 @@ import play.api.libs.json._
 import play.api.libs.json.util._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
+import play.api.libs.iteratee.{Enumerator, Iteratee, Concurrent}
+import akka.util.Timeout
+
+import akka.actor._
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import play.api.libs.concurrent.Akka
+import play.api.libs.concurrent.Execution.Implicits._
+import scala.concurrent.Future
+import scala.util.Success
+import play.api.Play.current
+import akka.pattern.ask
+//import dispatch.Future
 
 object Cypher {
 
@@ -137,4 +150,63 @@ object TaskManager {
 
   }
 
+  // Actor messages
+  case class  SendResponse(value: JsValue)
+  case object Subscribe
+  case class  Subscribed(messagesEnumerator: Enumerator[JsValue])
+
+  implicit val timeout = Timeout(1 second)
+
+  lazy val taskManagerActor: ActorRef = Akka.system.actorOf(Props[TaskManager])
+
+  def subscribe: Future[(Iteratee[JsValue,_], Enumerator[JsValue])] = {
+
+    val subscriptionResponse: Future[Any] = taskManagerActor ? Subscribe
+
+    subscriptionResponse.map {
+
+      case Subscribed(outgoingMessages) =>
+
+        val incomingMessages = Iteratee.foreach[JsValue] { messageJson =>
+
+          // parse message
+          val message = messageJson.as[WebSocketMessage]
+
+//          message match {
+//            case WebSocketMessage(messageType) if messageType == "GetAll" =>
+//              getTasks.onSuccess {
+//                case Success(v) => taskManagerActor ! SendResponse(Json.toJson(message))
+//              }
+//          }
+
+          taskManagerActor ! SendResponse(Json.toJson(message))
+
+        }
+
+        (incomingMessages, outgoingMessages)
+
+    }
+
+  }
+
+  // WebSocket messages
+  case class WebSocketMessage(messageType: String)
+  implicit val WebSocketMessageReads = Json.format[WebSocketMessage]
+
+
 }
+
+
+
+class TaskManager extends Actor {
+
+  val (outgoingMessages, channel) = Concurrent.broadcast[JsValue]
+
+  def receive = {
+    case TaskManager.SendResponse(response) => channel.push(response)
+    case TaskManager.Subscribe              => sender ! TaskManager.Subscribed(outgoingMessages)
+  }
+
+}
+
+
